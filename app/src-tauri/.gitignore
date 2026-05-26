@@ -10,3 +10,11 @@
 models/
 *.gguf
 
+# Generated Tauri binaries for local development on Windows
+/binaries/*.exe
+/binaries/*.dll
+/binaries/*.pdb
+/binaries/windows/*
+/binaries/macos/*
+/binaries/linux/*
+

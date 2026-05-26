@@ -32,10 +32,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "models/*"
-    ],
-    "externalBin": [
-      "binaries/llama-server"
+      "models/*",
+      "binaries/*"
     ]
   }
 }

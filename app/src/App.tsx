@@ -1,47 +1,80 @@
 import { useState, useEffect, useRef } from "react";
-import { Command } from "@tauri-apps/plugin-shell";
+import { invoke } from "@tauri-apps/api/core";
 import { resolveResource } from "@tauri-apps/api/path";
 import "./App.css";
 
+type TraceSeverity = "info" | "progress" | "success" | "error";
+
+type TraceItem = {
+  id: number;
+  message: string;
+  detail?: string;
+  severity: TraceSeverity;
+};
+
+const stripThinkBlocks = (content: string) => content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
+const getPlatformKey = () => {
+  const platform = navigator.platform.toLowerCase();
+
+  if (platform.includes("win")) {
+    return "windows";
+  }
+
+  if (platform.includes("mac")) {
+    return "macos";
+  }
+
+  if (platform.includes("linux")) {
+    return "linux";
+  }
+
+  return "unknown";
+};
+
+const getLlamaServerResourceCandidates = () => {
+  switch (getPlatformKey()) {
+    case "windows":
+      return [
+        "binaries/windows/llama-server.exe",
+        "binaries/llama-server.exe",
+      ];
+    case "macos":
+      return [
+        "binaries/macos/llama-server-aarch64-apple-darwin",
+        "binaries/llama-server-aarch64-apple-darwin",
+      ];
+    case "linux":
+      return [
+        "binaries/linux/llama-server",
+        "binaries/llama-server",
+      ];
+    default:
+      return ["binaries/llama-server"];
+  }
+};
+
 // Helper function to format message content
 const MessageContent = ({ content, isModel }: { content: string, isModel?: boolean }) => {
-  let formattedContent;
-  // Check if content contains <think> block
-  if (!content.includes('<think>')) {
-    formattedContent = <p className="whitespace-pre-wrap leading-relaxed">{content}</p>;
-  } else {
-    // Very basic parser for <think>...</think>
-    const parts = content.split(/(<think>[\s\S]*?<\/think>)/g);
-    
-    formattedContent = (
-      <>
-        {parts.map((part, i) => {
-          if (part.startsWith('<think>') && part.endsWith('</think>')) {
-            const innerContent = part.substring(7, part.length - 8).trim();
-            return (
-              <details key={i} className="mb-2">
-                <summary className="cursor-pointer text-sm text-gray-500 font-medium select-none">Model Thoughts</summary>
-                <div className="mt-1 p-2 bg-gray-300/50 rounded text-sm italic text-gray-700 whitespace-pre-wrap border-l-2 border-gray-400">
-                  {innerContent}
-                </div>
-              </details>
-            );
-          }
-          // Normal text
-          return part.trim() ? <p key={i} className="whitespace-pre-wrap mb-2 last:mb-0 leading-relaxed">{part.trim()}</p> : null;
-        })}
-      </>
-    );
-  }
+  const hasHiddenReasoning = content.includes('<think>');
+  const visibleContent = stripThinkBlocks(content);
 
   return (
     <div className="flex flex-col">
-      <div>{formattedContent}</div>
+      <p className="whitespace-pre-wrap leading-relaxed">{visibleContent || "[No visible response text]"}</p>
+      {hasHiddenReasoning && (
+        <details className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900">
+          <summary className="cursor-pointer select-none font-medium">Hidden reasoning omitted</summary>
+          <p className="mt-2 leading-relaxed">
+            The model returned internal reasoning blocks, but this UI only shows user-facing output and a safe analysis trace.
+          </p>
+        </details>
+      )}
       {isModel && (
         <details className="mt-3 opacity-60 hover:opacity-100 transition-opacity border-t border-gray-400/30 pt-2">
-          <summary className="cursor-pointer text-xs font-mono select-none">Raw LLM Output</summary>
+          <summary className="cursor-pointer text-xs font-mono select-none">Sanitized LLM Output</summary>
           <pre className="mt-2 p-3 bg-gray-900 text-gray-100 rounded-md text-xs font-mono whitespace-pre-wrap overflow-x-auto shadow-inner">
-            {content}
+            {visibleContent || "[No visible response text]"}
           </pre>
         </details>
       )}
@@ -68,39 +101,59 @@ function App() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<FileAttachment | null>(null);
+  const [systemTrace, setSystemTrace] = useState<TraceItem[]>([]);
+  const [requestTrace, setRequestTrace] = useState<TraceItem[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const traceCounterRef = useRef(0);
+  const serverReadyLoggedRef = useRef(false);
+
+  const pushTrace = (target: "system" | "request", message: string, severity: TraceSeverity = "info", detail?: string) => {
+    const item = {
+      id: traceCounterRef.current + 1,
+      message,
+      detail,
+      severity,
+    };
+
+    traceCounterRef.current += 1;
+    if (target === "system") {
+      setSystemTrace(prev => [...prev.slice(-5), item]);
+    } else {
+      setRequestTrace(prev => [...prev.slice(-7), item]);
+    }
+  };
 
   useEffect(() => {
     let healthCheckInterval: ReturnType<typeof setInterval>;
-    let childProcess: any = null;
     
     const startLlamaServer = async () => {
       try {
+        const llamaServerCandidates = getLlamaServerResourceCandidates();
+        const llamaServerPath = await invoke<string>("resolve_llama_server_path");
+
         const modelPath = await resolveResource('models/Qwen3.5-4B-Q4_K_M.gguf');
         const mmprojPath = await resolveResource('models/mmproj-F16.gguf');
         
         console.log("Resolved model absolute path:", modelPath);
         console.log("Resolved mmproj absolute path:", mmprojPath);
+        console.log("Using llama-server command:", llamaServerPath);
+        console.log("Llama server path candidates:", llamaServerCandidates);
+        pushTrace("system", "Resolved local model resources", "info", `${modelPath} | ${mmprojPath}`);
+        pushTrace("system", "Launching local multimodal server", "progress", llamaServerPath);
 
-        const command = Command.sidecar('binaries/llama-server', [
-          '-m', modelPath,
-          '--mmproj', mmprojPath, // Provide multimodal projector for vision understanding
-          '--port', '8080',
-          '-c', '4096' // Increased context window slightly for files/images
-        ]);
-        
-        command.on('close', data => console.log(`command finished with code ${data.code}`));
-        command.on('error', error => console.error(`command error: "${error}"`));
-        command.stdout.on('data', line => console.log(`stdout: "${line}"`));
-        command.stderr.on('data', line => console.log(`stderr: "${line}"`));
+        const pid = await invoke<number>("start_llama_server", {
+          modelPath,
+          mmprojPath,
+          llamaServerPath,
+        });
 
-        childProcess = await command.spawn();
-        
-        console.log("Llama server spawned with PID: ", childProcess.pid);
+        console.log("Llama server spawned with PID: ", pid);
+        pushTrace("system", "Local server process spawned", "success", `PID ${pid}`);
       } catch (err) {
         console.error("Failed to spawn llama server:", err);
+        pushTrace("system", "Failed to start local server", "error", String(err));
       }
     };
 
@@ -118,13 +171,17 @@ function App() {
     healthCheckInterval = setInterval(async () => {
       const isHealthy = await checkServerHealth();
       setIsServerReady(isHealthy);
+      if (isHealthy && !serverReadyLoggedRef.current) {
+        pushTrace("system", "Local inference backend is ready", "success", "Health check returned 200");
+        serverReadyLoggedRef.current = true;
+      }
+      if (!isHealthy) {
+        serverReadyLoggedRef.current = false;
+      }
     }, 2000);
 
     return () => {
       clearInterval(healthCheckInterval);
-      if (childProcess) {
-        childProcess.kill();
-      }
     };
   }, []);
 
@@ -151,6 +208,13 @@ function App() {
         type: file.type || "application/octet-stream",
         data: base64Data
       });
+
+      pushTrace(
+        "system",
+        file.type.startsWith("image/") ? "Prepared image attachment" : "Prepared document attachment",
+        "info",
+        `${file.name} · ${file.type || "unknown type"}`
+      );
     };
     reader.readAsDataURL(file);
     
@@ -166,6 +230,9 @@ function App() {
 
     const userMsg = input.trim();
     const currentAttachment = pendingAttachment;
+
+    setRequestTrace([]);
+    pushTrace("request", "Building request payload", "progress", "Combining conversation history and the new turn");
     
     setInput("");
     setPendingAttachment(null);
@@ -179,6 +246,16 @@ function App() {
 
     const apiMessages: any[] = [];
     const allMessagesList = [...messages, { role: 'user', content: userMsg, attachments: currentAttachment ? [currentAttachment] : undefined }];
+    const hasImageAttachment = Boolean(currentAttachment && currentAttachment.type.startsWith("image/"));
+
+    if (currentAttachment) {
+      pushTrace(
+        "request",
+        hasImageAttachment ? "Image attachment queued for multimodal analysis" : "File attachment will be embedded as text",
+        "info",
+        `${currentAttachment.name} · ${currentAttachment.type}`
+      );
+    }
     
     allMessagesList.forEach(msg => {
       let contentArray: any[] = [];
@@ -230,6 +307,13 @@ function App() {
       stop: ["<|im_start|>", "<|im_end|>"]
     };
 
+    pushTrace(
+      "request",
+      "Sending chat completion request",
+      "progress",
+      `${apiMessages.length} message(s), ${currentAttachment ? 1 : 0} attachment(s), stream=false`
+    );
+
     try {
       const response = await fetch('http://127.0.0.1:8080/v1/chat/completions', {
         method: 'POST',
@@ -242,6 +326,7 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         console.log('API Response:', data);
+        pushTrace("request", "Received model response", "success", `HTTP ${response.status}`);
         
         let responseMessage = 'Error: No response generated.';
         if (data.choices && data.choices.length > 0) {
@@ -253,10 +338,12 @@ function App() {
         setMessages(prev => [...prev, { role: 'model', content: responseMessage }]);
       } else {
         console.error('Server returned an error:', response.statusText);
+        pushTrace("request", "Model request failed", "error", `HTTP ${response.status} ${response.statusText}`);
         setMessages(prev => [...prev, { role: 'model', content: 'Error: Failed to fetch response.' }]);
       }
     } catch (error) {
       console.error('Request failed:', error);
+      pushTrace("request", "Request exception", "error", String(error));
       setMessages(prev => [...prev, { role: 'model', content: 'Error: Request failed.' }]);
     } finally {
       setIsLoading(false);
@@ -270,6 +357,55 @@ function App() {
   return (
     <main className="flex flex-col h-screen max-h-screen bg-gray-50 p-4 font-sans text-gray-900">
       <h1 className="text-2xl font-bold text-center text-gray-800 mb-2 tracking-tight">Local Data Extraction AI</h1>
+
+      <div className="mb-3 grid gap-3 lg:grid-cols-2">
+        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-600">Live system trace</h2>
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${isServerReady ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+              {isServerReady ? 'Ready' : 'Starting'}
+            </span>
+          </div>
+          <div className="mt-3 space-y-2 text-sm">
+            {systemTrace.length === 0 ? (
+              <p className="text-gray-400">Waiting for server startup and resource loading events.</p>
+            ) : systemTrace.map(item => (
+              <div key={item.id} className="flex gap-3 rounded-lg bg-gray-50 px-3 py-2 border border-gray-100">
+                <span className={`mt-0.5 h-2.5 w-2.5 rounded-full flex-none ${item.severity === 'success' ? 'bg-green-500' : item.severity === 'error' ? 'bg-red-500' : item.severity === 'progress' ? 'bg-blue-500' : 'bg-gray-400'}`} />
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-800">{item.message}</p>
+                  {item.detail && <p className="text-xs text-gray-500 mt-0.5 truncate">{item.detail}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-600">Current analysis trace</h2>
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${isLoading ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+              {isLoading ? 'Running' : 'Idle'}
+            </span>
+          </div>
+          <div className="mt-3 space-y-2 text-sm">
+            {requestTrace.length === 0 ? (
+              <p className="text-gray-400">Send a prompt or attach an image to see request assembly and photo-analysis steps.</p>
+            ) : requestTrace.map(item => (
+              <div key={item.id} className="flex gap-3 rounded-lg bg-gray-50 px-3 py-2 border border-gray-100">
+                <span className={`mt-0.5 h-2.5 w-2.5 rounded-full flex-none ${item.severity === 'success' ? 'bg-green-500' : item.severity === 'error' ? 'bg-red-500' : item.severity === 'progress' ? 'bg-blue-500' : 'bg-gray-400'}`} />
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-800">{item.message}</p>
+                  {item.detail && <p className="text-xs text-gray-500 mt-0.5 truncate">{item.detail}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-gray-500 leading-relaxed">
+            The app surfaces transparent request steps and image handling metadata. It does not expose hidden model chain-of-thought.
+          </p>
+        </section>
+      </div>
 
       {!isServerReady ? (
         <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-xl shadow-sm border border-gray-200">

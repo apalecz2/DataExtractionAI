@@ -13,8 +13,23 @@
       "identifier": "shell:allow-spawn",
       "allow": [
         {
-          "name": "binaries/llama-server",
-          "sidecar": true,
+          "name": "$RESOURCE/binaries/llama-server.exe",
+          "cmd": "$RESOURCE/binaries/llama-server.exe",
+          "args": true
+        },
+        {
+          "name": "$RESOURCE/binaries/windows/llama-server.exe",
+          "cmd": "$RESOURCE/binaries/windows/llama-server.exe",
+          "args": true
+        },
+        {
+          "name": "$RESOURCE/binaries/llama-server-aarch64-apple-darwin",
+          "cmd": "$RESOURCE/binaries/llama-server-aarch64-apple-darwin",
+          "args": true
+        },
+        {
+          "name": "$RESOURCE/binaries/macos/llama-server-aarch64-apple-darwin",
+          "cmd": "$RESOURCE/binaries/macos/llama-server-aarch64-apple-darwin",
           "args": true
         }
       ]
@@ -23,8 +38,23 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "binaries/llama-server",
-          "sidecar": true,
+          "name": "$RESOURCE/binaries/llama-server.exe",
+          "cmd": "$RESOURCE/binaries/llama-server.exe",
+          "args": true
+        },
+        {
+          "name": "$RESOURCE/binaries/windows/llama-server.exe",
+          "cmd": "$RESOURCE/binaries/windows/llama-server.exe",
+          "args": true
+        },
+        {
+          "name": "$RESOURCE/binaries/llama-server-aarch64-apple-darwin",
+          "cmd": "$RESOURCE/binaries/llama-server-aarch64-apple-darwin",
+          "args": true
+        },
+        {
+          "name": "$RESOURCE/binaries/macos/llama-server-aarch64-apple-darwin",
+          "cmd": "$RESOURCE/binaries/macos/llama-server-aarch64-apple-darwin",
           "args": true
         }
       ]
