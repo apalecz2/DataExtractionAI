@@ -1,10 +1,29 @@
 use std::{path::PathBuf, process::{Child, Command}, sync::Mutex};
 
+use tauri::{Manager, WindowEvent};
+
 const DEFAULT_CTX_SIZE: &str = "8192";
 const DEFAULT_IMAGE_MIN_TOKENS: &str = "1024";
 
 struct AppState {
     llama_server: Mutex<Option<Child>>,
+}
+
+fn stop_llama_server_process(state: &AppState) -> Result<(), String> {
+    let mut llama_server = state
+        .llama_server
+        .lock()
+        .map_err(|error| format!("failed to lock llama server state: {error}"))?;
+
+    if let Some(mut child) = llama_server.take() {
+        child
+            .kill()
+            .map_err(|error| format!("failed to stop llama server: {error}"))?;
+
+        let _ = child.wait();
+    }
+
+    Ok(())
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -55,7 +74,29 @@ fn resolve_llama_server_path() -> Result<String, String> {
 }
 
 #[tauri::command]
-fn start_llama_server(model_path: String, mmproj_path: String, llama_server_path: String) -> Result<u32, String> {
+fn start_llama_server(
+    state: tauri::State<'_, AppState>,
+    model_path: String,
+    mmproj_path: String,
+    llama_server_path: String,
+) -> Result<u32, String> {
+    let mut llama_server = state
+        .llama_server
+        .lock()
+        .map_err(|error| format!("failed to lock llama server state: {error}"))?;
+
+    if let Some(child) = llama_server.as_mut() {
+        if child
+            .try_wait()
+            .map_err(|error| format!("failed to inspect llama server state: {error}"))?
+            .is_none()
+        {
+            return Ok(child.id());
+        }
+
+        llama_server.take();
+    }
+
     let mut command = Command::new(&llama_server_path);
     command
         .arg("-m")
@@ -74,8 +115,14 @@ fn start_llama_server(model_path: String, mmproj_path: String, llama_server_path
         .map_err(|error| format!("failed to spawn llama server: {error}"))?;
 
     let pid = child.id();
+    *llama_server = Some(child);
 
     Ok(pid)
+}
+
+#[tauri::command]
+fn stop_llama_server(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    stop_llama_server_process(&state)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -84,10 +131,17 @@ pub fn run() {
         .manage(AppState {
             llama_server: Mutex::new(None),
         })
+        .on_window_event(|window, event| {
+            if matches!(event, WindowEvent::CloseRequested { .. }) {
+                if let Some(state) = window.app_handle().try_state::<AppState>() {
+                    let _ = stop_llama_server_process(&state);
+                }
+            }
+        })
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, resolve_llama_server_path, start_llama_server])
+        .invoke_handler(tauri::generate_handler![greet, resolve_llama_server_path, start_llama_server, stop_llama_server])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

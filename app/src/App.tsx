@@ -111,6 +111,8 @@ type AppMessage = {
   attachments?: FileAttachment[];
 };
 
+let llamaServerStartPromise: Promise<number | null> | null = null;
+
 function App() {
   const [isServerReady, setIsServerReady] = useState(false);
   const [messages, setMessages] = useState<AppMessage[]>([]);
@@ -151,7 +153,11 @@ function App() {
     let healthCheckInterval: ReturnType<typeof setInterval>;
     
     const startLlamaServer = async () => {
-      try {
+      if (llamaServerStartPromise) {
+        return llamaServerStartPromise;
+      }
+
+      llamaServerStartPromise = (async () => {
         const llamaServerCandidates = getLlamaServerResourceCandidates();
         const llamaServerPath = await invoke<string>("resolve_llama_server_path");
 
@@ -173,9 +179,24 @@ function App() {
 
         console.log("Llama server spawned with PID: ", pid);
         pushTrace("system", "Local server process spawned", "success", `PID ${pid}`);
-      } catch (err) {
+
+        return pid;
+      })().catch(err => {
         console.error("Failed to spawn llama server:", err);
         pushTrace("system", "Failed to start local server", "error", String(err));
+        return null;
+      }).finally(() => {
+        llamaServerStartPromise = null;
+      });
+
+      return llamaServerStartPromise;
+    };
+
+    const stopLlamaServer = async () => {
+      try {
+        await invoke("stop_llama_server");
+      } catch (err) {
+        console.error("Failed to stop llama server:", err);
       }
     };
 
@@ -188,8 +209,7 @@ function App() {
       }
     };
     
-    // Bug: Called twice, also no cleanup
-    startLlamaServer();
+    void startLlamaServer();
 
     healthCheckInterval = setInterval(async () => {
       const isHealthy = await checkServerHealth();
@@ -205,6 +225,7 @@ function App() {
 
     return () => {
       clearInterval(healthCheckInterval);
+      void stopLlamaServer();
     };
   }, []);
 
