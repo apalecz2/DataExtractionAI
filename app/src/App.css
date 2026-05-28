@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+@theme {
+	--font-display-lg: ui-sans-serif, system-ui, sans-serif;
+	--font-headline-md: ui-sans-serif, system-ui, sans-serif;
+	--font-body-lg: ui-sans-serif, system-ui, sans-serif;
+	--font-body-md: ui-sans-serif, system-ui, sans-serif;
+	--font-body-sm: ui-sans-serif, system-ui, sans-serif;
+	--font-label-md: ui-sans-serif, system-ui, sans-serif;
+	--font-mono-data: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+	--text-display-lg: 3.5rem;
+	--text-display-lg--line-height: 1.05;
+	--text-headline-md: 1.75rem;
+	--text-headline-md--line-height: 1.2;
+	--text-body-lg: 1.125rem;
+	--text-body-lg--line-height: 1.6;
+	--text-body-md: 1rem;
+	--text-body-md--line-height: 1.6;
+	--text-body-sm: 0.875rem;
+	--text-body-sm--line-height: 1.5;
+	--text-label-md: 0.875rem;
+	--text-label-md--line-height: 1.4;
+	--text-mono-data: 0.875rem;
+	--text-mono-data--line-height: 1.4;
+}

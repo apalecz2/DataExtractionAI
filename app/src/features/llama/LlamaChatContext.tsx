@@ -6,11 +6,14 @@ import type { ChatMessage, FileAttachment } from "../extraction/types";
 
 type LlamaChatContextValue = {
     isServerReady: boolean;
+    isServerStarting: boolean;
     isLoading: boolean;
     messages: ChatMessage[];
     pendingAttachment: FileAttachment | null;
     attachImage: (file: File) => Promise<boolean>;
     removePendingAttachment: () => void;
+    startServer: () => Promise<void>;
+    stopServer: () => Promise<void>;
     sendMessage: (text: string) => Promise<boolean>;
 };
 
@@ -31,6 +34,7 @@ const readImageFile = (file: File) =>
 
 export const LlamaChatProvider = ({ children }: { children: ReactNode }) => {
     const [isServerReady, setIsServerReady] = useState(false);
+    const [isServerStarting, setIsServerStarting] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [pendingAttachment, setPendingAttachment] = useState<FileAttachment | null>(null);
@@ -52,8 +56,6 @@ export const LlamaChatProvider = ({ children }: { children: ReactNode }) => {
             }
         }, 2000);
 
-        void startLlamaServer();
-
         return () => {
             isMounted = false;
             clearInterval(healthCheckInterval);
@@ -61,6 +63,39 @@ export const LlamaChatProvider = ({ children }: { children: ReactNode }) => {
             void stopLlamaServer();
         };
     }, []);
+
+    const startServer = async () => {
+        if (isServerReady || isServerStarting) {
+            return;
+        }
+
+        setIsServerStarting(true);
+
+        try {
+            await startLlamaServer();
+
+            for (let attempt = 0; attempt < 60; attempt += 1) {
+                if (await checkLlamaServerHealth()) {
+                    setIsServerReady(true);
+                    return;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        } finally {
+            setIsServerStarting(false);
+        }
+    };
+
+    const stopServer = async () => {
+        if (!isServerReady && !isServerStarting) {
+            return;
+        }
+
+        await stopLlamaServer();
+        setIsServerReady(false);
+        setIsServerStarting(false);
+    };
 
     const attachImage = async (file: File) => {
         if (!file.type.startsWith("image/")) {
@@ -190,11 +225,14 @@ export const LlamaChatProvider = ({ children }: { children: ReactNode }) => {
 
     const contextValue: LlamaChatContextValue = {
         isServerReady,
+        isServerStarting,
         isLoading,
         messages,
         pendingAttachment,
         attachImage,
         removePendingAttachment,
+        startServer,
+        stopServer,
         sendMessage,
     };
 
