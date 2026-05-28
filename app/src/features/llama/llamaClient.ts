@@ -1,0 +1,204 @@
+import { invoke } from "@tauri-apps/api/core";
+import { resolveResource } from "@tauri-apps/api/path";
+
+import type { ChatMessage } from "../extraction/types";
+
+type ChatCompletionContentPart =
+    | {
+        type: "text";
+        text: string;
+    }
+    | {
+        type: "image_url";
+        image_url: {
+            url: string;
+        };
+    };
+
+type ChatCompletionMessage = {
+    role: "user" | "assistant";
+    content: string | ChatCompletionContentPart[];
+};
+
+type ChatCompletionRequestBody = {
+    messages: ChatCompletionMessage[];
+    max_tokens: number;
+    temperature: number;
+    stream: true;
+    stop: string[];
+};
+
+type StreamChatCompletionOptions = {
+    messages: ChatCompletionMessage[];
+    onDelta: (content: string) => void;
+    signal?: AbortSignal;
+};
+
+let llamaServerStartPromise: Promise<number | null> | null = null;
+
+const stripThinkBlocks = (content: string) =>
+    content.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/<think>[\s\S]*$/g, "").trim();
+
+const parseThinkBlocks = (content: string) => {
+    const thinkingBlocks = Array.from(content.matchAll(/<think>([\s\S]*?)(?:<\/think>|$)/g), match => match[1].trim()).filter(Boolean);
+
+    return {
+        visibleContent: stripThinkBlocks(content),
+        thinking: thinkingBlocks.join("\n").trim(),
+    };
+};
+
+export const buildChatCompletionMessages = (messages: ChatMessage[]): ChatCompletionMessage[] => {
+    return messages.map(message => {
+        const contentParts: ChatCompletionContentPart[] = [];
+
+        if (message.attachments && message.attachments.length > 0) {
+            message.attachments.forEach(attachment => {
+                contentParts.push({
+                    type: "image_url",
+                    image_url: {
+                        url: `data:${attachment.type};base64,${attachment.data}`,
+                    },
+                });
+            });
+        }
+
+        if (message.content) {
+            contentParts.push({
+                type: "text",
+                text: message.content,
+            });
+        }
+
+        return {
+            role: message.role === "assistant" ? "assistant" : "user",
+            content: contentParts.length === 1 && contentParts[0].type === "text" ? contentParts[0].text : contentParts,
+        };
+    });
+};
+
+export const startLlamaServer = async () => {
+    if (llamaServerStartPromise) {
+        return llamaServerStartPromise;
+    }
+
+    llamaServerStartPromise = (async () => {
+        const llamaServerPath = await invoke<string>("resolve_llama_server_path");
+        const modelPath = await resolveResource("models/Qwen3.5-4B-Q4_K_M.gguf");
+        const mmprojPath = await resolveResource("models/mmproj-F16.gguf");
+
+        const pid = await invoke<number>("start_llama_server", {
+            modelPath,
+            mmprojPath,
+            llamaServerPath,
+        });
+
+        return pid;
+    })()
+        .catch(err => {
+            console.error("Failed to spawn llama server:", err);
+            return null;
+        })
+        .finally(() => {
+            llamaServerStartPromise = null;
+        });
+
+    return llamaServerStartPromise;
+};
+
+export const stopLlamaServer = async () => {
+    try {
+        await invoke("stop_llama_server");
+    } catch (err) {
+        console.error("Failed to stop llama server:", err);
+    }
+};
+
+export const checkLlamaServerHealth = async () => {
+    try {
+        const response = await fetch("http://127.0.0.1:8080/health");
+        return response.status === 200;
+    } catch {
+        return false;
+    }
+};
+
+export const streamChatCompletion = async ({ messages, onDelta, signal }: StreamChatCompletionOptions) => {
+    const requestBody: ChatCompletionRequestBody = {
+        messages,
+        max_tokens: 1024,
+        temperature: 0.7,
+        stream: true,
+        stop: ["<|im_start|>", "<|im_end|>"],
+    };
+
+    const response = await fetch("http://127.0.0.1:8080/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        signal,
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+    }
+
+    const reader = response.body?.getReader();
+
+    if (!reader) {
+        throw new Error("Streaming response body is unavailable.");
+    }
+
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let rawAssistantContent = "";
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+            if (!line.startsWith("data: ")) {
+                continue;
+            }
+
+            const data = line.slice(6).trim();
+
+            if (!data || data === "[DONE]") {
+                continue;
+            }
+
+            try {
+                const parsed = JSON.parse(data);
+                const delta = parsed.choices?.[0]?.delta ?? {};
+                const reasoningToken = delta.reasoning ?? delta.thinking ?? delta.reasoning_content ?? "";
+                const contentToken = delta.content ?? "";
+
+                if (reasoningToken) {
+                    rawAssistantContent += `<think>${reasoningToken}</think>`;
+                }
+
+                if (contentToken) {
+                    rawAssistantContent += contentToken;
+                }
+
+                if (reasoningToken || contentToken) {
+                    const parsedAssistantContent = parseThinkBlocks(rawAssistantContent);
+                    onDelta(parsedAssistantContent.visibleContent);
+                }
+            } catch (streamError) {
+                console.error("Stream parse error:", streamError, data);
+            }
+        }
+    }
+
+    return stripThinkBlocks(rawAssistantContent);
+};

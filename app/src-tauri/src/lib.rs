@@ -26,12 +26,6 @@ fn stop_llama_server_process(state: &AppState) -> Result<(), String> {
     Ok(())
 }
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 #[tauri::command]
 fn resolve_llama_server_path() -> Result<String, String> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -141,7 +135,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, resolve_llama_server_path, start_llama_server, stop_llama_server])
+        .invoke_handler(tauri::generate_handler![resolve_llama_server_path, start_llama_server, stop_llama_server])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
