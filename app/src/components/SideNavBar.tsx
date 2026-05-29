@@ -1,67 +1,154 @@
-// src/components/SideNavBar.jsx
-import { NavLink } from 'react-router';
+type SideNavBarProps = {
+    collapsed: boolean;
+    onToggleCollapse: () => void;
+};
 
-export default function SideNavBar() {
-  // Helper function to handle active/inactive Tailwind classes
-  const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 ${
-      isActive
-        ? 'text-primary font-bold bg-surface-container border-r-2 border-primary'
-        : 'text-on-surface-variant hover:bg-surface-container-high font-normal'
-    }`;
+const sidebarItems = [
+    { id: 'search-chats', label: 'Search Chats', icon: 'search' },
+    { id: 'settings', label: 'Settings', icon: 'settings' },
+    { id: 'about', label: 'About', icon: 'info' },
+];
 
-  return (
-    <nav className="fixed left-0 top-0 h-full flex flex-col p-unit w-70 rounded-lg bg-surface border-r border-outline-variant z-20">
-      {/* Header */}
-      <div className="p-6 pb-8">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded bg-primary text-on-primary flex items-center justify-center font-headline-md">
-            A
-          </div>
-          <div>
-            <h1 className="font-headline-md text-headline-md text-primary leading-none">
-              Artifact
-            </h1>
-            <span className="font-label-md text-label-md text-on-surface-variant font-normal tracking-normal text-[11px] uppercase">
-              Local Intelligence
-            </span>
-          </div>
-        </div>
-      </div>
+export default function SideNavBar({ collapsed, onToggleCollapse }: SideNavBarProps) {
+    const textVisibilityClasses = collapsed ? 'pointer-events-none w-0 opacity-0' : 'w-auto opacity-100';
 
-      {/* Navigation */}
-      <div className="flex-1 px-4 flex flex-col gap-1">
-        <NavLink to="/workspace" className={navLinkClasses}>
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>description</span>
-          <span className="font-body-md text-body-md">Documents</span>
-        </NavLink>
-        
-        <NavLink to="/queue" className={navLinkClasses}>
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>pending_actions</span>
-          <span className="font-body-md text-body-md">Queue</span>
-        </NavLink>
-        
-        <NavLink to="/history" className={navLinkClasses}>
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>history</span>
-          <span className="font-body-md text-body-md">History</span>
-        </NavLink>
-        
-        {/* Push settings to the bottom */}
-        <div className="mt-auto">
-          <NavLink to="/settings" className={navLinkClasses}>
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>settings</span>
-            <span className="font-body-md text-body-md">Settings</span>
-          </NavLink>
-        </div>
-      </div>
+    return (
+        <nav
+            aria-label="Sidebar"
+            className="fixed left-0 top-0 z-20 flex h-screen flex-col border-r border-outline-variant bg-background shadow-lg shadow-black/10 transition-[background-color,border-color,box-shadow,width] duration-150 lg:shadow-none"
+            style={{
+                width: collapsed ? '5.5rem' : '18rem',
+                paddingTop: 'var(--app-install-banner-height, 0px)',
+                paddingBottom: 'var(--dev-dashboard-height, 0px)',
+            }}
+        >
+            <div className="relative flex w-full items-center p-2 pointer-events-auto pt-2">
+                <div className="flex items-center gap-1.5 pl-2 h-8 overflow-clip [overflow-clip-margin:4px] transition-opacity duration-150 opacity-100">
+                    <div className={`min-w-0 overflow-hidden transition-opacity duration-150 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
+                        <h1 className="truncate font-headline-md text-headline-md leading-none text-on-surface">
+                            Artifact
+                        </h1>
+                    </div>
+                </div>
 
-      {/* CTA */}
-      <div className="p-4 mt-2">
-        <button className="w-full bg-primary text-on-primary font-label-md text-label-md py-2.5 rounded-md flex items-center justify-center gap-2 hover:bg-inverse-surface transition-colors shadow-sm">
-          <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>add</span>
-          New Extraction
-        </button>
-      </div>
-    </nav>
-  );
+                <div className="absolute right-3 top-2 flex items-center gap-1 transition-[right] duration-150">
+                    {!collapsed && (
+                        <button
+                            aria-label="Search"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                            type="button"
+                        >
+                            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+                                search
+                            </span>
+                        </button>
+                    )}
+                    <button
+                        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                        onClick={onToggleCollapse}
+                        type="button"
+                    >
+                        <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+                            {collapsed ? 'chevron_right' : 'chevron_left'}
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex flex-col grow overflow-hidden min-h-0 opacity-100 transition-opacity ease-out duration-150" aria-hidden={collapsed ? 'true' : 'false'}>
+                <div className="flex flex-col gap-px pt-2">
+                    <div className="px-2">
+                        <button
+                            className="inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-[9px] border border-transparent bg-primary px-4 py-2.5 text-xs font-medium text-on-primary transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                            type="button"
+                        >
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-on-primary/15 text-on-primary">
+                                <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                    add
+                                </span>
+                            </span>
+                            <span className={`flex-1 truncate text-left font-body-sm text-body-sm ${textVisibilityClasses}`}>
+                                New Extraction
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex grow flex-col overflow-x-hidden overflow-y-auto border-t border-transparent scrollbar-gutter-stable pt-2">
+                    <div className="flex flex-col px-2 gap-px">
+                        {sidebarItems.map((item) => (
+                            <button
+                                aria-label={item.label}
+                                className="group inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-[9px] border border-transparent px-4 py-2.5 text-xs font-medium text-on-surface-variant transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-surface-container-high hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                                key={item.id}
+                                title={item.label}
+                                type="button"
+                            >
+                                <span className="flex h-5 w-5 shrink-0 items-center justify-center text-on-surface-variant transition-colors group-hover:text-primary">
+                                    <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+                                        {item.icon}
+                                    </span>
+                                </span>
+                                <span className={`flex-1 truncate text-left font-body-sm text-body-sm transition-opacity duration-150 ${textVisibilityClasses}`}>
+                                    {item.label}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="px-2 mt-4">
+                        <div className="flex flex-col grow">
+                            <div className="group/nsh flex items-center gap-1 min-w-0 mt-1 pb-2 pl-2 text-xs text-on-surface-variant select-none">
+                                <h2 className="contents">
+                                    <span className={`truncate ${textVisibilityClasses}`}>
+                                        Recents
+                                    </span>
+                                </h2>
+                            </div>
+
+                            <div className="relative group">
+                                <button
+                                    className="inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-[9px] border border-transparent px-4 py-2.5 text-xs font-medium text-on-surface-variant transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-surface-container-high hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    type="button"
+                                >
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center text-on-surface-variant transition-colors group-hover:text-primary">
+                                        <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+                                            history
+                                        </span>
+                                    </span>
+                                    <span className={`flex-1 truncate text-left font-body-sm text-body-sm transition-opacity duration-150 ${textVisibilityClasses}`}>
+                                        Recent extraction
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 border-t border-outline-variant/50 p-2">
+                    <button
+                        aria-label="Local Session settings"
+                        className="inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-none border border-transparent px-2 py-4 text-sm font-medium transition-[gap] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                        type="button"
+                    >
+                        <div className="relative shrink-0">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-on-surface text-background text-[16px] font-bold select-none">
+                                A
+                            </div>
+                        </div>
+                        <div className={`flex flex-1 min-w-0 flex-col items-start pr-1 transition-opacity duration-150 ${textVisibilityClasses}`}>
+                            <span className="w-full truncate text-start font-label-md text-label-md text-on-surface">Local Session</span>
+                            <span className="w-full truncate text-start font-body-sm text-body-sm text-on-surface-variant">Private and offline</span>
+                        </div>
+                        <span className={`ml-auto flex items-center text-on-surface-variant transition-opacity duration-150 ${textVisibilityClasses}`}>
+                            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+                                settings
+                            </span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+    );
 }
