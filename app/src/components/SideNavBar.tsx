@@ -17,9 +17,9 @@ export interface NavItem {
 }
 
 export const defaultNavItems: NavItem[] = [
-    { id: 'dashboard', icon: 'home', label: 'Dashboard', href: '/' },
-    { id: 'about', icon: 'info', label: 'About', href: '/about' },
+    { id: 'dashboard', icon: 'add', label: 'New Extraction', href: '/' },
     { id: 'settings', icon: 'settings', label: 'Settings', href: '/settings' },
+    { id: 'about', icon: 'info', label: 'About', href: '/about' },
 ];
 
 // ─── Component Props ───────────────────────────────────────────────────────────
@@ -192,13 +192,13 @@ const SideNavBar: FC<SideNavBarProps> = ({
                                         </span>
                                         <span
                                             className={`
-                    whitespace-nowrap text-sm font-medium
-                    transition-[opacity,width,margin] duration-300
-                    ${collapsed
+                                                whitespace-nowrap text-sm font-medium
+                                                transition-[opacity,width,margin] duration-300
+                                                ${collapsed
                                                     ? 'w-0 overflow-hidden opacity-0 md:ml-0 ml-4'
                                                     : 'opacity-100 ml-4'
                                                 }
-                `}
+                                            `}
                                         >
                                             {item.label}
                                         </span>
@@ -206,14 +206,14 @@ const SideNavBar: FC<SideNavBarProps> = ({
                                 );
 
                                 const sharedClassName = `
-        flex h-10 w-full cursor-pointer items-center rounded-[10px]
-        transition-all duration-300 ease-out
-        ${collapsed ? 'md:px-2 px-3' : 'px-3'}
-        ${isActive
+                                    flex h-10 w-full cursor-pointer items-center rounded-[10px]
+                                    transition-all duration-300 ease-out
+                                    ${collapsed ? 'md:px-2 px-3' : 'px-3'}
+                                    ${isActive
                                         ? 'bg-primary/10 text-primary'
                                         : 'text-on-surface hover:bg-surface-variant'
                                     }
-    `;
+                                `;
 
                                 if (item.href && !item.onClick) {
                                     return (
