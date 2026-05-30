@@ -1,154 +1,171 @@
-type SideNavBarProps = {
-    collapsed: boolean;
-    onToggleCollapse: () => void;
-};
+import { FC } from 'react';
+import { Link } from 'react-router';
 
-const sidebarItems = [
-    { id: 'search-chats', label: 'Search Chats', icon: 'search' },
-    { id: 'settings', label: 'Settings', icon: 'settings' },
-    { id: 'about', label: 'About', icon: 'info' },
+// ─── Nav Item Definition ───────────────────────────────────────────────────────
+// Add, remove, or reorder items here to change the sidebar contents.
+export interface NavItem {
+    /** Unique identifier used as the React key */
+    id: string;
+    /** Material Symbols icon name (see fonts.google.com/icons) */
+    icon: string;
+    /** Display label shown when the sidebar is expanded */
+    label: string;
+    /** Optional: href for anchor-based navigation */
+    href?: string;
+    /** Optional: click handler (takes priority over href) */
+    onClick?: () => void;
+}
+
+export const defaultNavItems: NavItem[] = [
+    { id: 'dashboard', icon: 'home', label: 'Dashboard', href: '/' },
+    { id: 'analytics', icon: 'bar_chart', label: 'Analytics', href: '/analytics' },
+    { id: 'projects', icon: 'folder', label: 'Projects', href: '/projects' },
+    { id: 'messages', icon: 'chat_bubble', label: 'Messages', href: '/messages' },
+    { id: 'calendar', icon: 'calendar_month', label: 'Calendar', href: '/calendar' },
+    { id: 'settings', icon: 'settings', label: 'Settings', href: '/settings' },
 ];
 
-export default function SideNavBar({ collapsed, onToggleCollapse }: SideNavBarProps) {
-    const textVisibilityClasses = collapsed ? 'pointer-events-none w-0 opacity-0' : 'w-auto opacity-100';
+// ─── Component Props ───────────────────────────────────────────────────────────
+interface SideNavBarProps {
+    collapsed: boolean;
+    onToggleCollapse: () => void;
+    /** Override the default nav items with your own list */
+    navItems?: NavItem[];
+    /** Optionally highlight one item as active */
+    activeId?: string;
+}
 
+const SideNavBar: FC<SideNavBarProps> = ({
+    collapsed,
+    onToggleCollapse,
+    navItems = defaultNavItems,
+    activeId,
+}) => {
     return (
-        <nav
-            aria-label="Sidebar"
-            className="fixed left-0 top-0 z-20 flex h-screen flex-col border-r border-outline-variant bg-background shadow-lg shadow-black/10 transition-[background-color,border-color,box-shadow,width] duration-150 lg:shadow-none"
-            style={{
-                width: collapsed ? '5.5rem' : '18rem',
-                paddingTop: 'var(--app-install-banner-height, 0px)',
-                paddingBottom: 'var(--dev-dashboard-height, 0px)',
-            }}
-        >
-            <div className="relative flex w-full items-center p-2 pointer-events-auto pt-2">
-                <div className="flex items-center gap-1.5 pl-2 h-8 overflow-clip [overflow-clip-margin:4px] transition-opacity duration-150 opacity-100">
-                    <div className={`min-w-0 overflow-hidden transition-opacity duration-150 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
-                        <h1 className="truncate font-headline-md text-headline-md leading-none text-on-surface">
-                            Artifact
-                        </h1>
-                    </div>
-                </div>
+        <>
+            {/* Optional: Mobile overlay backdrop when expanded */}
+            {!collapsed && (
+                <div
+                    className="fixed inset-0 z-30 bg-transparent transition-opacity md:hidden"
+                    onClick={onToggleCollapse}
+                    aria-hidden="true"
+                />
+            )}
 
-                <div className="absolute right-3 top-2 flex items-center gap-1 transition-[right] duration-150">
-                    {!collapsed && (
-                        <button
-                            aria-label="Search"
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                            type="button"
-                        >
-                            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
-                                search
-                            </span>
-                        </button>
-                    )}
-                    <button
-                        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                        onClick={onToggleCollapse}
-                        type="button"
-                    >
-                        <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
-                            {collapsed ? 'chevron_right' : 'chevron_left'}
-                        </span>
-                    </button>
-                </div>
-            </div>
+            {/* 1. Moved Button */}
+            <button
+                onClick={onToggleCollapse}
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                className={`
+                        fixed top-4 z-50 flex h-10 w-10 items-center justify-center rounded-[10px] bg-surface-variant text-on-surface shadow-md transition-all duration-300 ease-out hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20
+                    ${collapsed
+                        ? 'left-4 md:left-8 md:-translate-x-1/2' // Mobile: top-left. Desktop: centered over 5.5rem.
+                        : 'left-60' // Expanded: 18rem width minus button width & padding
+                    }
+                `}
+            >
+                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+                    {collapsed ? 'menu' : 'chevron_left'}
+                </span>
+            </button>
 
-            <div className="flex flex-col grow overflow-hidden min-h-0 opacity-100 transition-opacity ease-out duration-150" aria-hidden={collapsed ? 'true' : 'false'}>
-                <div className="flex flex-col gap-px pt-2">
-                    <div className="px-2">
-                        <button
-                            className="inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-[9px] border border-transparent bg-primary px-4 py-2.5 text-xs font-medium text-on-primary transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                            type="button"
-                        >
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-on-primary/15 text-on-primary">
-                                <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                                    add
+            {/* Sidebar Container */}
+            <aside
+                className={`
+                    fixed top-0 left-0 z-40 flex h-screen flex-col border-r border-surface-variant bg-surface-container transition-all duration-300 ease-out
+                    ${collapsed
+                        ? '-translate-x-full md:translate-x-0 md:w-16' // Hidden on mobile, narrow on desktop
+                        : 'translate-x-0 w-[18rem]' // Expanded state
+                    }
+                `}
+            >
+
+                <nav
+                    className="mt-20 flex flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto px-3 pb-4"
+                    aria-label="Main navigation"
+                >
+                    {navItems.map((item) => {
+                        const isActive = item.id === activeId;
+
+                        const content = (
+                            <>
+                                {/* Icon — always visible, centered in collapsed state */}
+                                <span
+                                    className="material-symbols-outlined flex min-w-[24px] justify-center text-[24px]"
+                                    style={{
+                                        fontVariationSettings: isActive
+                                            ? "'FILL' 1"
+                                            : "'FILL' 0",
+                                    }}
+                                    aria-hidden="true"
+                                >
+                                    {item.icon}
                                 </span>
-                            </span>
-                            <span className={`flex-1 truncate text-left font-body-sm text-body-sm ${textVisibilityClasses}`}>
-                                New Extraction
-                            </span>
-                        </button>
-                    </div>
-                </div>
 
-                <div className="flex grow flex-col overflow-x-hidden overflow-y-auto border-t border-transparent scrollbar-gutter-stable pt-2">
-                    <div className="flex flex-col px-2 gap-px">
-                        {sidebarItems.map((item) => (
-                            <button
-                                aria-label={item.label}
-                                className="group inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-[9px] border border-transparent px-4 py-2.5 text-xs font-medium text-on-surface-variant transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-surface-container-high hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                                key={item.id}
-                                title={item.label}
-                                type="button"
-                            >
-                                <span className="flex h-5 w-5 shrink-0 items-center justify-center text-on-surface-variant transition-colors group-hover:text-primary">
-                                    <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
-                                        {item.icon}
-                                    </span>
-                                </span>
-                                <span className={`flex-1 truncate text-left font-body-sm text-body-sm transition-opacity duration-150 ${textVisibilityClasses}`}>
+                                {/*
+                                 * Label visibility rules:
+                                 *   - Mobile  : always hidden (sidebar is off-screen when collapsed)
+                                 *   - Desktop collapsed : hidden (md:opacity-0 + md:w-0 prevents layout shift)
+                                 *   - Desktop expanded  : visible
+                                 *   - Any expanded      : visible
+                                 */}
+                                <span
+                                    className={`
+                                        whitespace-nowrap text-sm font-medium
+                                        transition-[opacity,width,margin] duration-300
+                                        ${collapsed
+                                            ? 'w-0 overflow-hidden opacity-0 md:ml-0 ml-4' // Removes margin on desktop collapsed, keeps it on mobile
+                                            : 'opacity-100 ml-4' // Standard margin when expanded
+                                        }
+                                    `}
+                                >
                                     {item.label}
                                 </span>
-                            </button>
-                        ))}
-                    </div>
+                            </>
+                        );
 
-                    <div className="px-2 mt-4">
-                        <div className="flex flex-col grow">
-                            <div className="group/nsh flex items-center gap-1 min-w-0 mt-1 pb-2 pl-2 text-xs text-on-surface-variant select-none">
-                                <h2 className="contents">
-                                    <span className={`truncate ${textVisibilityClasses}`}>
-                                        Recents
-                                    </span>
-                                </h2>
-                            </div>
+                        const sharedClassName = `
+                            flex h-10 w-full cursor-pointer items-center rounded-[10px]
+                            transition-all duration-300 ease-out
+                            ${collapsed ? 'md:px-2 px-3' : 'px-3'}
+                            ${isActive
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-on-surface hover:bg-surface-variant'
+                            }
+                        `;
 
-                            <div className="relative group">
-                                <button
-                                    className="inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-[9px] border border-transparent px-4 py-2.5 text-xs font-medium text-on-surface-variant transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-surface-container-high hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                                    type="button"
+                        // Render as <a> when href is provided, otherwise <button>
+                        if (item.href && !item.onClick) {
+                            return (
+                                <Link
+                                    key={item.id}
+                                    to={item.href}
+                                    className={sharedClassName}
+                                    aria-current={isActive ? 'page' : undefined}
+                                    title={collapsed ? item.label : undefined}
                                 >
-                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center text-on-surface-variant transition-colors group-hover:text-primary">
-                                        <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
-                                            history
-                                        </span>
-                                    </span>
-                                    <span className={`flex-1 truncate text-left font-body-sm text-body-sm transition-opacity duration-150 ${textVisibilityClasses}`}>
-                                        Recent extraction
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                                    {content}
+                                </Link>
+                            );
+                        }
 
-                <div className="flex items-center gap-2 border-t border-outline-variant/50 p-2">
-                    <button
-                        aria-label="Local Session settings"
-                        className="inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-none border border-transparent px-2 py-4 text-sm font-medium transition-[gap] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                        type="button"
-                    >
-                        <div className="relative shrink-0">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-on-surface text-background text-[16px] font-bold select-none">
-                                A
-                            </div>
-                        </div>
-                        <div className={`flex flex-1 min-w-0 flex-col items-start pr-1 transition-opacity duration-150 ${textVisibilityClasses}`}>
-                            <span className="w-full truncate text-start font-label-md text-label-md text-on-surface">Local Session</span>
-                            <span className="w-full truncate text-start font-body-sm text-body-sm text-on-surface-variant">Private and offline</span>
-                        </div>
-                        <span className={`ml-auto flex items-center text-on-surface-variant transition-opacity duration-150 ${textVisibilityClasses}`}>
-                            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
-                                settings
-                            </span>
-                        </span>
-                    </button>
-                </div>
-            </div>
-        </nav>
+                        return (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={item.onClick}
+                                className={sharedClassName}
+                                aria-current={isActive ? 'page' : undefined}
+                                title={collapsed ? item.label : undefined}
+                            >
+                                {content}
+                            </button>
+                        );
+                    })}
+                </nav>
+            </aside>
+        </>
     );
-}
+};
+
+export default SideNavBar;

@@ -3,62 +3,63 @@ import { Outlet } from 'react-router';
 import SideNavBar from '../components/SideNavBar';
 
 export default function AppLayout() {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        if (typeof window === 'undefined') {
+            return false;
+        }
 
-    const storedTheme = window.localStorage.getItem('theme');
+        const storedTheme = window.localStorage.getItem('theme');
 
-    if (storedTheme === 'dark') {
-      return true;
-    }
+        if (storedTheme === 'dark') {
+            return true;
+        }
 
-    if (storedTheme === 'light') {
-      return false;
-    }
+        if (storedTheme === 'light') {
+            return false;
+        }
 
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-    window.localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
+    useEffect(() => {
+        document.documentElement.classList.toggle('dark', isDarkMode);
+        window.localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    }, [isDarkMode]);
 
-  return (
-    <div className="bg-background text-on-surface font-body-md antialiased overflow-hidden flex h-screen w-full">
-      <SideNavBar
-        collapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed((current) => !current)}
-      />
+    return (
+        <div className="bg-background text-on-surface font-body-md antialiased overflow-hidden flex h-screen w-full">
 
-      {/* Main Content Area */}
-      <main
-        className="flex-1 flex flex-col relative transition-[margin-left] duration-300 ease-out"
-        style={{ marginLeft: isSidebarCollapsed ? '5.5rem' : '18rem' }}
-      >
+            <SideNavBar
+                collapsed={isSidebarCollapsed}
+                onToggleCollapse={() => setIsSidebarCollapsed((current) => !current)}
+            />
 
-        {/* === Top Right Floating Button === */}
-        <div className="absolute top-4 right-6 z-50">
-          <button
-            aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-surface-variant text-on-surface transition-colors shadow-md hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-            onClick={() => setIsDarkMode((current) => !current)}
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>
-              {isDarkMode ? 'dark_mode' : 'light_mode'}
-            </span>
-          </button>
+            {/* Main Content Area */}
+            <main
+                className={`flex-1 flex flex-col relative transition-all duration-300 ease-out ml-0 
+                    ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[18rem]'}`}
+            >
+
+                {/* === Top Right Floating Button === */}
+                <div className="absolute top-4 right-6 z-50">
+                    <button
+                        aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                        className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-surface-variant text-on-surface transition-colors shadow-md hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                        onClick={() => setIsDarkMode((current) => !current)}
+                        type="button"
+                    >
+                        <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+                            {isDarkMode ? 'dark_mode' : 'light_mode'}
+                        </span>
+                    </button>
+                </div>
+
+                {/* Dynamic Page Content injects here */}
+                <div className="flex-1 overflow-hidden">
+                    <Outlet />
+                </div>
+            </main>
         </div>
-
-        {/* Dynamic Page Content injects here */}
-        <div className="flex-1 overflow-hidden">
-          <Outlet />
-        </div>
-      </main>
-    </div>
-  );
+    );
 }
