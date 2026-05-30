@@ -18,10 +18,7 @@ export interface NavItem {
 
 export const defaultNavItems: NavItem[] = [
     { id: 'dashboard', icon: 'home', label: 'Dashboard', href: '/' },
-    { id: 'analytics', icon: 'bar_chart', label: 'Analytics', href: '/analytics' },
-    { id: 'projects', icon: 'folder', label: 'Projects', href: '/projects' },
-    { id: 'messages', icon: 'chat_bubble', label: 'Messages', href: '/messages' },
-    { id: 'calendar', icon: 'calendar_month', label: 'Calendar', href: '/calendar' },
+    { id: 'about', icon: 'info', label: 'About', href: '/about' },
     { id: 'settings', icon: 'settings', label: 'Settings', href: '/settings' },
 ];
 
@@ -33,6 +30,7 @@ interface SideNavBarProps {
     navItems?: NavItem[];
     /** Optionally highlight one item as active */
     activeId?: string;
+    recentItems?: NavItem[];
 }
 
 const SideNavBar: FC<SideNavBarProps> = ({
@@ -40,6 +38,7 @@ const SideNavBar: FC<SideNavBarProps> = ({
     onToggleCollapse,
     navItems = defaultNavItems,
     activeId,
+    recentItems = [],
 }) => {
     return (
         <>
@@ -162,6 +161,91 @@ const SideNavBar: FC<SideNavBarProps> = ({
                             </button>
                         );
                     })}
+
+                    {recentItems.length > 0 && (
+                        <>
+                            <div className={`
+                            my-2 border-t border-surface-variant transition-opacity duration-300
+                            ${collapsed ? 'mx-2 opacity-50' : 'mx-4 opacity-100'}
+                        `} />
+
+                            <div className={`
+                            mb-1 text-xs font-semibold text-on-surface-variant transition-all duration-300
+                            ${collapsed ? 'w-0 overflow-hidden opacity-0' : 'ml-4 opacity-100'}
+                        `}>
+                                Recent Sessions
+                            </div>
+
+                            {recentItems.map((item) => {
+                                const isActive = item.id === activeId;
+
+                                const content = (
+                                    <>
+                                        <span
+                                            className="material-symbols-outlined flex min-w-[24px] justify-center text-[24px]"
+                                            style={{
+                                                fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                                            }}
+                                            aria-hidden="true"
+                                        >
+                                            {item.icon}
+                                        </span>
+                                        <span
+                                            className={`
+                    whitespace-nowrap text-sm font-medium
+                    transition-[opacity,width,margin] duration-300
+                    ${collapsed
+                                                    ? 'w-0 overflow-hidden opacity-0 md:ml-0 ml-4'
+                                                    : 'opacity-100 ml-4'
+                                                }
+                `}
+                                        >
+                                            {item.label}
+                                        </span>
+                                    </>
+                                );
+
+                                const sharedClassName = `
+        flex h-10 w-full cursor-pointer items-center rounded-[10px]
+        transition-all duration-300 ease-out
+        ${collapsed ? 'md:px-2 px-3' : 'px-3'}
+        ${isActive
+                                        ? 'bg-primary/10 text-primary'
+                                        : 'text-on-surface hover:bg-surface-variant'
+                                    }
+    `;
+
+                                if (item.href && !item.onClick) {
+                                    return (
+                                        <Link
+                                            key={item.id}
+                                            to={item.href}
+                                            className={sharedClassName}
+                                            aria-current={isActive ? 'page' : undefined}
+                                            title={collapsed ? item.label : undefined}
+                                        >
+                                            {content}
+                                        </Link>
+                                    );
+                                }
+
+                                return (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={item.onClick}
+                                        className={sharedClassName}
+                                        aria-current={isActive ? 'page' : undefined}
+                                        title={collapsed ? item.label : undefined}
+                                    >
+                                        {content}
+                                    </button>
+                                );
+                            })}
+                        </>
+                    )}
+
+
                 </nav>
             </aside>
         </>

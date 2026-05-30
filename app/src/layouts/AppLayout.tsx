@@ -1,9 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router';
-import SideNavBar from '../components/SideNavBar';
+import SideNavBar, { NavItem } from '../components/SideNavBar';
+import { useLocation } from 'react-router';
+import { getDb } from '../lib/db';
+
+interface SessionRow {
+    id: string;
+    title: string;
+}
 
 export default function AppLayout() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+    const location = useLocation();
+    const [recentSessions, setRecentSessions] = useState<NavItem[]>([]);
+
+    const activeId = location.pathname === '/'
+        ? 'dashboard'
+        : location.pathname.split('/').pop();
+
     const [isDarkMode, setIsDarkMode] = useState(() => {
         if (typeof window === 'undefined') {
             return false;
@@ -27,12 +42,38 @@ export default function AppLayout() {
         window.localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     }, [isDarkMode]);
 
+    useEffect(() => {
+        async function fetchRecents() {
+            try {
+                const db = await getDb();
+                
+                // Use raw SQL to fetch the latest 10 sessions
+                const sessions = await db.select<SessionRow[]>(
+                    'SELECT id, title FROM sessions ORDER BY updated_at DESC LIMIT 10'
+                );
+
+                setRecentSessions(sessions.map(s => ({
+                    id: s.id,
+                    icon: 'description', // Or any material symbol you prefer
+                    label: s.title,
+                    href: `/session/${s.id}`
+                })));
+            } catch (error) {
+                console.error("Failed to fetch recent sessions:", error);
+            }
+        }
+        
+        fetchRecents();
+    }, [location.pathname]);
+
     return (
         <div className="bg-background text-on-surface font-body-md antialiased overflow-hidden flex h-screen w-full">
 
             <SideNavBar
                 collapsed={isSidebarCollapsed}
                 onToggleCollapse={() => setIsSidebarCollapsed((current) => !current)}
+                activeId={activeId}
+                recentItems={recentSessions}
             />
 
             {/* Main Content Area */}
