@@ -9,7 +9,7 @@ interface Session {
     updated_at: string;
 }
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 export default function Search(): React.ReactElement {
     const [query, setQuery] = useState('');

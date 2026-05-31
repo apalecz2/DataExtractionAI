@@ -176,7 +176,7 @@ const SideNavBar: FC<SideNavBarProps> = ({
                         );
                     })}
 
-                    {recentItems.length > 0 && (
+                    {recentItems.length > 0 && !collapsed && (
                         <>
                             <div className={`
                             my-2 border-t border-surface-variant transition-opacity duration-300
@@ -184,8 +184,8 @@ const SideNavBar: FC<SideNavBarProps> = ({
                         `} />
 
                             <div className={`
-                            mb-1 text-xs font-semibold text-on-surface-variant transition-all duration-300
-                            ${collapsed ? 'w-0 overflow-hidden opacity-0' : 'ml-4 opacity-100'}
+                            mb-1 min-w-56 whitespace-nowrap text-sm font-semibold text-on-surface-variant transition-all duration-300
+                            ${collapsed ? 'w-0 overflow-hidden opacity-0' : 'ml-3 opacity-100'}
                         `}>
                                 Recent Sessions
                             </div>
@@ -194,29 +194,9 @@ const SideNavBar: FC<SideNavBarProps> = ({
                                 const isActive = item.id === activeId;
 
                                 const content = (
-                                    <>
-                                        <span
-                                            className="material-symbols-outlined flex min-w-[24px] justify-center text-[24px]"
-                                            style={{
-                                                fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
-                                            }}
-                                            aria-hidden="true"
-                                        >
-                                            {item.icon}
-                                        </span>
-                                        <span
-                                            className={`
-                                                flex-1 truncate text-sm font-medium
-                                                transition-[opacity,width,margin] duration-300
-                                                ${collapsed
-                                                    ? 'w-0 opacity-0 md:ml-0 ml-4'
-                                                    : 'opacity-100 ml-4'
-                                                }
-                                            `}
-                                        >
-                                            {item.label}
-                                        </span>
-                                    </>
+                                    <span className="min-w-56 truncate text-sm font-medium">
+                                        {item.label}
+                                    </span>
                                 );
 
                                 const sharedClassName = `
